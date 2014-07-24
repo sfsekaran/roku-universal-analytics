@@ -82,33 +82,18 @@ Function UA_Init(AccountID) as Void
     m.UATracker.endpoint = "http://www.google-analytics.com/collect"
 End Function
 
-Function UA_trackEvent(EventCat, EventAct, EventLab, EventVal) as Void
+Function UA_trackEvent(EventCategory, EventAction, EventLabel = invalid, EventValue = invalid) as Void
   params = {
-    z: "" + GetRandomInt(10),
-    v: "1",
-    cid: m.UATracker.userID,
-    tid: m.UATracker.AccountID,
-    dimension1: m.UATracker.model,
-    dimension2: m.UATracker.version,
-    sr: m.UATracker.display,
-    sd: m.UATracker.ratio,
-    an: m.UATracker.appName,
-    av: m.UATracker.appVersion,
-
-    t: "event"
+    t: "event",
+    ec: EventCategory,
+    ea: EventAction
   }
 
-  If EventCat <> invalid
-    params.ec = EventCat
+  If EventLabel <> invalid
+    params.el = EventLabel
   end if
-  If EventAct <> invalid
-    params.ea = EventAct
-  end if
-  If EventLab <> invalid
-    params.el = EventLab
-  end if
-  If EventVal <> invalid
-    params.ev = EventVal
+  If EventValue <> invalid
+    params.ev = EventValue
   end if
 
   UA_sendRequest(params)
@@ -116,18 +101,7 @@ End Function
 
 Function UA_trackPageview(Pageview) as Void
   params = {
-    z: "" + GetRandomInt(10),
-    v: "1",
-    cid: m.UATracker.userID,
-    tid: m.UATracker.AccountID,
-    dimension1: m.UATracker.model,
-    dimension2: m.UATracker.version,
-    sr: m.UATracker.display,
-    sd: m.UATracker.ratio,
-    an: m.UATracker.appName,
-    av: m.UATracker.appVersion,
     t: "pageview",
-
     dp: Pageview
   }
 
@@ -136,18 +110,14 @@ End Function
 
 Function UA_trackScreen(ScreenName) as Void
   params = {
-    v: m.UATracker.appVersion, 'v=1 // Version.
-    tid: m.UATracker.AccountID, '&tid=UA-XXXX-Y // Tracking ID / Web property / Property ID.
-    cid: m.UATracker.userID, '&cid=555 // Anonymous Client ID.
-
     t: "screenview", '&t=screenview // Screenview hit type.
-    an: m.UATracker.appName, '&an=funTimes // App name.
-    av: m.UATracker.appVersion, '&av=4.2.0 // App version.
     aid: "com." + m.UATracker.companyName + ".RokuApp", '&aid=com.foo.App // App Id.
     aiid: "com.Roku.Store", '&aiid=com.android.vending // App Installer Id.
-
     cd: ScreenName ' &cd=Home // Screen name / content description.
   }
+
+  print "UA_trackScreen:"
+  print params
 
   UA_sendRequest(params)
 end Function
@@ -155,6 +125,19 @@ end Function
 Function UA_sendRequest(params)
   xfer = CreateObject("roURLTransfer")
 
+  ' these parameters go out with every request
+  params.v = "1" 'v=1 // Version.
+  params.tid = m.UATracker.AccountID '&tid=UA-XXXX-Y // Tracking ID / Web property / Property ID.
+  params.cid = m.UATracker.userID '&cid=555 // Anonymous Client ID, UUID v4 format.
+  params.an = m.UATracker.appName
+  params.av = m.UATracker.appVersion
+  params.sr = m.UATracker.display
+  params.sd = m.UATracker.ratio
+  params.dimension1 = m.UATracker.model
+  params.dimension2 = m.UATracker.version
+  params.z = GetRandomInt(100) ' google recommends placing this last
+
+  ' urlencode each parameter
   payload = ""
   for each key in params
     if payload <> ""
@@ -163,6 +146,9 @@ Function UA_sendRequest(params)
     payload = payload + key + "=" + xfer.Escape(params[key])
   end for
 
-  xfer.SetURL(m.UATracker.endpoint + "?" + payload)
+  ' bombs away
+  url = m.UATracker.endpoint + "?" + payload
+  xfer.SetURL(url)
+  print "UA_sendRequest: " + url
   response = xfer.GetToString()
 end Function
