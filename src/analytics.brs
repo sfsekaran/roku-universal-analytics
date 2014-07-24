@@ -32,7 +32,7 @@ Function GetRandomInt(length As Integer) As String
     Return hexString
 End Function
 
-Function GetUserID() As String
+Function GetUserID()
     sec = CreateObject("roRegistrySection", "analytics")
     if sec.Exists("UserID")
         return sec.Read("UserID")
@@ -48,7 +48,7 @@ Function SetUserID() As String
     Return uuid
 End Function
 
-Function UA_Init(AccountID as String) as Void
+Function UA_Init(AccountID) as Void
     di = CreateObject("roDeviceInfo") 
     m.UATracker = CreateObject("roAssociativeArray")
 
@@ -75,63 +75,94 @@ Function UA_Init(AccountID as String) as Void
 
     m.UATracker.appName = "Test_APP"
     m.UATracker.appVersion = "b1"
+    m.UATracker.companyName = "CompanyName"
 
     m.UATracker.ratio = di.GetDisplayAspectRatio()
-    m.UATracker.endpoint = "http://www.analytics-debugger.com/universal/"
-    'm.UATracker.endpoint = "http://www.google-analytics.com/collect?"
+    ' m.UATracker.endpoint = "http://requestb.in/1ikqvlt1"
+    m.UATracker.endpoint = "http://www.google-analytics.com/collect"
 End Function
 
-Function UA_trackEvent(EventCat as String , EventAct as String , EventLab as String , EventVal as String) as Void
+Function UA_trackEvent(EventCat, EventAct, EventLab, EventVal) as Void
+  params = {
+    z: "" + GetRandomInt(10),
+    v: "1",
+    cid: m.UATracker.userID,
+    tid: m.UATracker.AccountID,
+    dimension1: m.UATracker.model,
+    dimension2: m.UATracker.version,
+    sr: m.UATracker.display,
+    sd: m.UATracker.ratio,
+    an: m.UATracker.appName,
+    av: m.UATracker.appVersion,
 
-    payload = "z="+GetRandomInt(10)
-    payload = payload + "&v=1"
-    payload = payload + "&cid=" + m.UATracker.userID
-    payload = payload + "&tid=" + m.UATracker.AccountID   
-    payload = payload + "&dimension1=" + m.UATracker.model
-    payload = payload + "&dimension2=" + m.UATracker.version
-    payload = payload + "&sr=" + m.UATracker.display     
-    payload = payload + "&sd=" + m.UATracker.ratio
-    payload = payload + "&an=" + m.UATracker.appName
-    payload = payload + "&av=" + m.UATracker.appVersion    
+    t: "event"
+  }
 
-    payload = payload + "&t=event" 
-    If Len(EventCat) > 0
-    payload = payload + "&ec=" + EventCat
-    end if
-    If Len(EventAct) > 0
-    payload = payload + "&ea=" + EventAct
-    end if
-    If Len(EventLab) > 0
-    payload = payload + "&el=" + EventLab
-    end if
-    If Len(EventVal) > 0
-    payload = payload + "&ev=" + EventVal
-    end if
+  If EventCat <> invalid
+    params.ec = EventCat
+  end if
+  If EventAct <> invalid
+    params.ea = EventAct
+  end if
+  If EventLab <> invalid
+    params.el = EventLab
+  end if
+  If EventVal <> invalid
+    params.ev = EventVal
+  end if
 
-    xfer = CreateObject("roURLTransfer")
-    xfer.SetURL(m.UATracker.endpoint+"?"+payload)
-    response = xfer.GetToString()    
+  UA_sendRequest(params)
 End Function
 
-Function UA_trackPageview(Pageview as String) as Void
+Function UA_trackPageview(Pageview) as Void
+  params = {
+    z: "" + GetRandomInt(10),
+    v: "1",
+    cid: m.UATracker.userID,
+    tid: m.UATracker.AccountID,
+    dimension1: m.UATracker.model,
+    dimension2: m.UATracker.version,
+    sr: m.UATracker.display,
+    sd: m.UATracker.ratio,
+    an: m.UATracker.appName,
+    av: m.UATracker.appVersion,
+    t: "pageview",
 
-    payload = "z="+GetRandomInt(10)
-    payload = payload + "&v=1"
-    payload = payload + "&cid=" + m.UATracker.userID
-    payload = payload + "&tid=" + m.UATracker.AccountID   
-    payload = payload + "&dimension1=" + m.UATracker.model
-    payload = payload + "&dimension2=" + m.UATracker.version
-    payload = payload + "&sr=" + m.UATracker.display     
-    payload = payload + "&sd=" + m.UATracker.ratio
-    payload = payload + "&an=" + m.UATracker.appName
-    payload = payload + "&av=" + m.UATracker.appVersion    
-    payload = payload + "&t=pageview" 
+    dp: Pageview
+  }
 
-    If Len(Pageview) > 0
-    payload = payload + "&dp=" + Pageview
-    end if
-
-    xfer = CreateObject("roURLTransfer")
-    xfer.SetURL(m.UATracker.endpoint+"?"+payload)    
-    response = xfer.GetToString()    
+  UA_sendRequest(params)
 End Function
+
+Function UA_trackScreen(ScreenName) as Void
+  params = {
+    v: m.UATracker.appVersion, 'v=1 // Version.
+    tid: m.UATracker.AccountID, '&tid=UA-XXXX-Y // Tracking ID / Web property / Property ID.
+    cid: m.UATracker.userID, '&cid=555 // Anonymous Client ID.
+
+    t: "screenview", '&t=screenview // Screenview hit type.
+    an: m.UATracker.appName, '&an=funTimes // App name.
+    av: m.UATracker.appVersion, '&av=4.2.0 // App version.
+    aid: "com." + m.UATracker.companyName + ".RokuApp", '&aid=com.foo.App // App Id.
+    aiid: "com.Roku.Store", '&aiid=com.android.vending // App Installer Id.
+
+    cd: ScreenName ' &cd=Home // Screen name / content description.
+  }
+
+  UA_sendRequest(params)
+end Function
+
+Function UA_sendRequest(params)
+  xfer = CreateObject("roURLTransfer")
+
+  payload = ""
+  for each key in params
+    if payload <> ""
+      payload = payload + "&"
+    end if
+    payload = payload + key + "=" + xfer.Escape(params[key])
+  end for
+
+  xfer.SetURL(m.UATracker.endpoint + "?" + payload)
+  response = xfer.GetToString()
+end Function
